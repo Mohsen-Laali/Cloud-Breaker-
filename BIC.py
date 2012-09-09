@@ -4,6 +4,7 @@ class Point():
     '''
     this class keep the point 
     '''
+    t = float()
     x=float()
     y=float()
     z=float()
