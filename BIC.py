@@ -4,9 +4,10 @@ class Point():
     '''
     this class keep the point 
     '''
-    x=float()
-    y=float()
-    z=float()
+    x=None
+    y=None
+    z=None
+    d= None
     line=None
     def __init__(self,line = None):
         '''
@@ -19,20 +20,27 @@ class Point():
             self.x= float(coordinates[0])
             self.y= float(coordinates[1])
             self.z= float(coordinates[2])
+            if len(coordinates) > 3 :
+                self.d = int(coordinates[3])
         else :
-            self.x = 0
-            self.y = 0
-            self.z = 0
+            self.x = float(0)
+            self.y = float(0)
+            self.z = float(0)
+            self.d = int(0)
 
 class IO(object):
     _fileName = str()
     _readAndWriteStream = None 
     _minimumZValue = None
     _maximumZValue = None
+    _minmumDensity = None
+    _maxDensity = None
+    _totalDensity = int() 
     _totalZValue = float()
     _numberOfPoins = 0
     _isFileIsOpen = False 
     _autoOpenClose = None
+    
     
     def __init__(self,fileName,autoOpenClose=True):
         self._autoOpenClose = autoOpenClose 
@@ -78,11 +86,21 @@ class IO(object):
             if ((point.z - (self._minimumZValue + zValue)) <0):
                 self._numberOfPoins += 1
                 self._totalZValue +=point.z
+                self._totalDensity += point.d
                 if(firstTime):
                     firstTime = False
                     self._maximumZValue = point.z
-                elif(point.z > self._maximumZValue):
-                    self._maximumZValue = point.z
+                    if point.d :
+                        self._maxDensity = point.d
+                        self._minmumDensity = point.d
+                else:
+                    if point.z > self._maximumZValue:
+                        self._maximumZValue = point.z
+                    if point.d :
+                        if point.d > self._maxDensity :
+                            self._maxDensity = point.d
+                        if point.d < self._minmumDensity :
+                            self._minmumDensity = point.d
                 fileToWrite.write(line)
         fileToWrite.close()
         self.colseFile()
@@ -98,16 +116,21 @@ class IO(object):
             self._readAndWriteStream = open(self._fileName,"r+")
             self._isFileIsOpen = True 
             
-    def minmumMaximumAndNumberOfPointsAverage(self):
+    def minmumMaximumAndAverage(self):
         if(self._numberOfPoins != 0):
             average = self._totalZValue/float(self._numberOfPoins)
+            averageDensity = self._totalDensity/float(self._numberOfPoins)
         else : average = -1
         if(self._maximumZValue == None):
             self._maximumZValue = -1
         if(self._minimumZValue == None):
             self._minimumZValue = -1
-        return [self._minimumZValue,self._maximumZValue,self._numberOfPoins,
-                average]
+        if self._minmumDensity :
+            return [self._minimumZValue,self._maximumZValue,self._numberOfPoins,
+                    average,self._minmumDensity,self._maxDensity,averageDensity]
+        else :
+            return [self._minimumZValue,self._maximumZValue,self._numberOfPoins,
+                    average]
         
     def getFileName(self):
         return self._fileName
@@ -216,15 +239,24 @@ class BIC(object):
                 [(int((point.x - topLeftPoint.x)/sizeOfBox))] 
                 io.writeToFile(line ,point.z)
             print ('writing point to disk is done')   
-            plotInfoFileHandler.write('  '+' Point_count Maximum_Z Minimum_Z Average_Z'+os.linesep )
+            plotInfoFileHandler.write('  '+' Point_count Maximum_Z Minimum_Z Average_Z '
+                                      +'Maximum_Density Minimum_Density Average_Density '+os.linesep )
             for iOLine in iOMatrix :
                 for io in iOLine :
                     io.colseFile()
-                    io.excludePointWithZValue(zValue)     
-                    minimum,maximum,numberOfPoints,average= io.minmumMaximumAndNumberOfPointsAverage()
-                    plotInfoFileHandler.write(io.getFileName().split(os.sep).pop().split('.')[0]
+                    io.excludePointWithZValue(zValue)  
+                    cloadInfo = io.minmumMaximumAndAverage()
+                    if len(cloadInfo) == 4:   
+                        minimum,maximum,numberOfPoints,average= cloadInfo
+                        plotInfoFileHandler.write(io.getFileName().split(os.sep).pop().split('.')[0]
+                                        +' '+str(numberOfPoints)+' '+str(maximum)+os.linesep)
+                    else:
+                        minimum,maximum,numberOfPoints,average,minimumD,maximumD,averageD=cloadInfo
+                        plotInfoFileHandler.write(io.getFileName().split(os.sep).pop().split('.')[0]
                                         +' '+str(numberOfPoints)+' '+str(maximum)+' '
-                                        +str(minimum)+' '+str(average)+os.linesep)
+                                        +str(minimum)+' '+str(average)+' '+
+                                        str(maximumD)+' '+str(minimumD)+' '+
+                                        str(averageD)+' '+os.linesep)
             print ('exclude z more than specific number is done')
             print ('finish process of '+ fileName)
             print('##########################################################################')
@@ -416,16 +448,17 @@ class BIC(object):
             
 if __name__ == '__main__':
     #put your folder address here 
-    folderAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks"
+    folderAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cloud-Breaker-\Cloud-Breaker-"
     #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
     #put z value here 
     
     zValue =1
-    largeNumberOfspilitting = True
+    largeNumberOfspilitting = False
     #put the size of box here 
     sizeOfBox = float(0.5)
     bic = BIC()
     bic.processData(folderAddress,sizeOfBox,zValue,largeNumberOfspilitting)
+
     #bic.exludeLessThanZ(folderAddress, zValue)
     #cut between two z value 
     #firstZValue = 100
