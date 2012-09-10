@@ -173,7 +173,7 @@ class BIC(object):
     
     def _initialIO(self,topLeftPoint,downRightPoint,sizeOfBox,folderAddress,
                    largeNumberOfspilitting=False,writCloadSizeInfo=True):
-        cloadSizeInfoFileAddress = os.path.join(folderAddress,'CloadSizeInfo.txt')
+        cloadSizeInfoFileAddress = os.path.join(folderAddress,'CloudSizeInfo.txt')
         if writCloadSizeInfo:
             cloadSizeInfoFileHandler = open(cloadSizeInfoFileAddress,'w+')
         tlp = Point()
