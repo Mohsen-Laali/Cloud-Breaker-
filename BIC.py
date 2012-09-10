@@ -171,26 +171,40 @@ class BIC(object):
                     
         return [topLeft,downRight]
     
-    def _initialIO(self,topLeftPoint,downRightPoint,sizeOfBox,folderAddress,largeNumberOfspilitting=False):
+    def _initialIO(self,topLeftPoint,downRightPoint,sizeOfBox,folderAddress,
+                   largeNumberOfspilitting=False,writCloadSizeInfo=True):
+        cloadSizeInfoFileAddress = os.path.join(folderAddress,'CloadSizeInfo.txt')
+        if writCloadSizeInfo:
+            cloadSizeInfoFileHandler = open(cloadSizeInfoFileAddress,'w+')
         tlp = Point()
         tlp.x = topLeftPoint.x
         tlp.y = topLeftPoint.y
         minimumX = tlp.x
         iOMatrix = []
-#        downPoint = Point()
         i = 0
+        drp= Point()
+        centerPoint = Point()
+        cloadSizeInfoFileHandler.write('File_Name Top_Left_x Top_Left_y Down_Right_x Down_Right_y Center_x Center_y'+os.linesep)
         while(tlp.y > downRightPoint.y):
             iOLine = []
-            # reset the x value 
             tlp.x = minimumX
             while (tlp.x < downRightPoint.x):
                 i += 1
+                drp.x = tlp.x+sizeOfBox
+                drp.y = tlp.y-sizeOfBox
+                centerPoint.x = tlp.x+ sizeOfBox/float(2)
+                centerPoint.y = tlp.y+ sizeOfBox/float(2)
+                cloadSizeInfoFileHandler.write(str(i)+'. '+str(tlp.x)+' '+str(tlp.y)+' '
+                                               +str(drp.x)+' '+str(drp.y)+' '
+                                               +str(centerPoint.x)+' '+str(centerPoint.y)
+                                               +os.linesep)
                 fileAddress = os.path.join( folderAddress , str(i)+".asc")
                 io = IO(fileAddress,largeNumberOfspilitting)
                 iOLine.append(io)
                 tlp.x = tlp.x +sizeOfBox
             tlp.y=tlp.y- sizeOfBox
             iOMatrix.append(iOLine)
+        cloadSizeInfoFileHandler.close()
         return iOMatrix 
     
     def _initialIOForBoxInBox(self,topLeftBorder, downRightBorder,
