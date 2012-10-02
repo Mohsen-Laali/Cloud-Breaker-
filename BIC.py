@@ -1,4 +1,6 @@
 import math
+from _pyio import open
+from tkinter.tix import MAX
 
 class Point():
     '''
@@ -40,9 +42,11 @@ class IO(object):
     _numberOfPoins = 0
     _isFileIsOpen = False 
     _autoOpenClose = None
+    _folderAddress = None
     
     
-    def __init__(self,fileName,autoOpenClose=True):
+    def __init__(self,fileName,folderAddress,autoOpenClose=True):
+        self._folderAddress = folderAddress
         self._autoOpenClose = autoOpenClose 
         self._fileName = fileName
         if not autoOpenClose :
@@ -76,13 +80,35 @@ class IO(object):
         if not self._isFileIsOpen :
             self._readAndWriteStream = open(self._fileName,'a+')
             self._isFileIsOpen = True
-            
-    def excludePointWithZValue(self,zValue):
+    def excludePointWithZValue(self,zValue,intervals=0,min=0,max=0):
         finalFileName = self._fileName.split(".")[0] + "ZzZz.asc"
+        fileName = finalFileName.replace(self._folderAddress,'')
+        fileNameIntervalsCount = os.path.join(self._folderAddress,'intervals_counts.txt')
+        intervalsCont = []
+        
+        if intervals != 0 :
+            if(not os.path.exists(fileNameIntervalsCount)):
+                fileIntervalsCount =open(fileNameIntervalsCount,'a+')
+                fileIntervalsCount.write('file_Name ')
+                start_Point = min 
+                for i in range(1,math.ceil(float(max-min)/intervals)+1):
+                    end_Point = min+intervals * i 
+                    if end_Point > max : end_Point = max 
+                    fileIntervalsCount.write(str(start_Point)+'_'+str(end_Point)+' ')
+                    intervalsCont.append(0)
+                    start_Point = end_Point
+                fileIntervalsCount.write(os.linesep)
+            else : 
+                fileIntervalsCount =open(fileNameIntervalsCount,'a+')
+                for i in range(1,math.ceil(float(max-min)/intervals)+1):
+                        intervalsCont.append(0)
         fileToWrite = open(finalFileName,"w")
         firstTime = True
         for line in self.readFromFile():
             point = Point(line)
+            if point.z > min and point.z <max :
+                intervalsCont[int(math.floor(float(max-point.z)/intervals))] = \
+                                    intervalsCont[int(math.floor(float(max-point.z)/intervals))]+1
             if ((point.z - (self._minimumZValue + zValue)) <0):
                 self._numberOfPoins += 1
                 self._totalZValue +=point.z
@@ -102,6 +128,11 @@ class IO(object):
                         if point.d < self._minmumDensity :
                             self._minmumDensity = point.d
                 fileToWrite.write(line)
+        fileIntervalsCount.write(fileName+' ')
+        for count in intervalsCont :
+            fileIntervalsCount.write(str(count)+' ')
+        fileIntervalsCount.write(os.linesep)
+        fileIntervalsCount.close()
         fileToWrite.close()
         self.colseFile()
         os.remove(self._fileName)
@@ -199,7 +230,7 @@ class BIC(object):
                                                +str(centerPoint.x)+' '+str(centerPoint.y)
                                                +os.linesep)
                 fileAddress = os.path.join( folderAddress , str(i)+".asc")
-                io = IO(fileAddress,largeNumberOfspilitting)
+                io = IO(fileAddress,folderAddress,largeNumberOfspilitting)
                 iOLine.append(io)
                 tlp.x = tlp.x +sizeOfBox
             tlp.y=tlp.y- sizeOfBox
@@ -227,9 +258,10 @@ class BIC(object):
         return iOList
             
         
-    def processData(self,folderAddress,sizeOfBox = 1 , zValue = 2 ,largeNumberOfspilitting = False,plotInfo = 'plotInfo.txt'):
+    def processData(self,folderAddress,sizeOfBox = 1 , zValue = 2 
+                    ,largeNumberOfspilitting = False,plotInfo = 'plotInfo.txt',
+                    intervals=0,min=0,max=0):
         #make result folder 
-        
         os.chdir(folderAddress)
         for fileName in glob.glob('*.asc'):
             outPutFolder = folderAddress+os.sep+fileName.split('.')[0]
@@ -258,7 +290,7 @@ class BIC(object):
             for iOLine in iOMatrix :
                 for io in iOLine :
                     io.colseFile()
-                    io.excludePointWithZValue(zValue)  
+                    io.excludePointWithZValue(zValue,intervals,min,max)  
                     cloadInfo = io.minmumMaximumAndAverage()
                     if len(cloadInfo) == 4:   
                         minimum,maximum,numberOfPoints,average= cloadInfo
@@ -466,12 +498,12 @@ if __name__ == '__main__':
     #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
     #put z value here 
     
-    zValue =1
+    zValue = float(0.5)
     largeNumberOfspilitting = False
     #put the size of box here 
     sizeOfBox = float(0.5)
     bic = BIC()
-    bic.processData(folderAddress,sizeOfBox,zValue,largeNumberOfspilitting)
+    bic.processData(folderAddress,sizeOfBox,zValue,largeNumberOfspilitting,intervals=1,min=0,max=100)
 
     #bic.exludeLessThanZ(folderAddress, zValue)
     #cut between two z value 
