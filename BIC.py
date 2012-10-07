@@ -90,25 +90,44 @@ class IO(object):
             if(not os.path.exists(fileNameIntervalsCount)):
                 fileIntervalsCount =open(fileNameIntervalsCount,'a+')
                 fileIntervalsCount.write('file_Name ')
-                start_Point = min 
-                for i in range(1,math.ceil(float(max-min)/intervals)+1):
-                    end_Point = min+intervals * i 
-                    if end_Point > max : end_Point = max 
-                    fileIntervalsCount.write(str(start_Point)+'_'+str(end_Point)+' ')
+                start = min 
+                loop = True 
+                while loop:
+                    end = start+intervals 
+                    if end > max : end = max 
+                    fileIntervalsCount.write(str(start)+'_'+str(end)+' ')
                     intervalsCont.append(0)
-                    start_Point = end_Point
+                    start = end 
+                    if end == max : break
+                    
                 fileIntervalsCount.write(os.linesep)
             else : 
                 fileIntervalsCount =open(fileNameIntervalsCount,'a+')
-                for i in range(1,math.ceil(float(max-min)/intervals)+1):
-                        intervalsCont.append(0)
+                start = min 
+                loop = True 
+                while loop:
+                    end = start+intervals 
+                    if end > max : end = max 
+                    intervalsCont.append(0)
+                    start = end 
+                    if end == max : break
         fileToWrite = open(finalFileName,"w")
         firstTime = True
         for line in self.readFromFile():
             point = Point(line)
             if point.z > min and point.z <max :
-                intervalsCont[int(math.floor(float(max-point.z)/intervals))] = \
-                                    intervalsCont[int(math.floor(float(max-point.z)/intervals))]+1
+                start = min 
+                end = min + intervals
+                index = 0
+                for count in intervalsCont:
+                    if point.z>start and point.z<end :
+                        intervalsCont[index] = count +1
+                        break
+                    index = index + 1
+                    start = end 
+                    end = start + intervals
+#                intervalsCont[int(math.floor(float(max-point.z)/intervals))] = \
+#                                    intervalsCont[int(math.floor(float(max-point.z)/intervals))]+1
             if ((point.z - (self._minimumZValue + zValue)) <0):
                 self._numberOfPoins += 1
                 self._totalZValue +=point.z
@@ -503,7 +522,8 @@ if __name__ == '__main__':
     #put the size of box here 
     sizeOfBox = float(0.5)
     bic = BIC()
-    bic.processData(folderAddress,sizeOfBox,zValue,largeNumberOfspilitting,intervals=1,min=0,max=100)
+    bic.processData(folderAddress,sizeOfBox,zValue,
+                    largeNumberOfspilitting,intervals=0.1,min=99,max=101)
 
     #bic.exludeLessThanZ(folderAddress, zValue)
     #cut between two z value 
