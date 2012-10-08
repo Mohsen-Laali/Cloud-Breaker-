@@ -109,7 +109,7 @@ class IO(object):
                 while loop:
                     end = start+intervals 
                     if end > max : end = max 
-                    intervalsCont.append(0)
+                    intervalsCont.append(int(0))
                     start = end 
                     if end == max : break
         fileToWrite = open(finalFileName,"w")
