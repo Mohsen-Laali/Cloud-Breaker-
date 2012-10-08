@@ -80,6 +80,7 @@ class IO(object):
         if not self._isFileIsOpen :
             self._readAndWriteStream = open(self._fileName,'a+')
             self._isFileIsOpen = True
+            
     def excludePointWithZValue(self,zValue,intervals=0,min=0,max=0):
         finalFileName = self._fileName.split(".")[0] + "ZzZz.asc"
         fileName = finalFileName.replace(self._folderAddress,'')
@@ -115,12 +116,12 @@ class IO(object):
         firstTime = True
         for line in self.readFromFile():
             point = Point(line)
-            if point.z > min and point.z <max :
+            if point.z-min > 0.00000001 and point.z -max <0.00000001 :
                 start = min 
                 end = min + intervals
                 index = 0
                 for count in intervalsCont:
-                    if point.z>start and point.z<end :
+                    if point.z- start >0.00000001 and point.z-end <0.00000001 :
                         intervalsCont[index] = count +1
                         break
                     index = index + 1
@@ -131,7 +132,8 @@ class IO(object):
             if ((point.z - (self._minimumZValue + zValue)) <0):
                 self._numberOfPoins += 1
                 self._totalZValue +=point.z
-                self._totalDensity += point.d
+                if point.d:
+                    self._totalDensity += point.d
                 if(firstTime):
                     firstTime = False
                     self._maximumZValue = point.z
