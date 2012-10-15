@@ -99,8 +99,7 @@ class IO(object):
                     fileIntervalsCount.write(str(start)+'_'+str(end)+' ')
                     intervalsCont.append(0)
                     start = end 
-                    if end == max : break
-                    
+                    if end == max : break     
                 fileIntervalsCount.write(os.linesep)
             else : 
                 fileIntervalsCount =open(fileNameIntervalsCount,'a+')
@@ -116,20 +115,21 @@ class IO(object):
         firstTime = True
         for line in self.readFromFile():
             point = Point(line)
-            if point.z-min > 0.00000001 and point.z -max <0.00000001 :
-                start = min 
-                end = min + intervals
-                index = 0
-                for count in intervalsCont:
-                    if point.z- start >0.00000001 and point.z-end <0.00000001 :
-                        intervalsCont[index] = count +1
-                        break
-                    index = index + 1
-                    start = end 
-                    end = start + intervals
-#                intervalsCont[int(math.floor(float(max-point.z)/intervals))] = \
-#                                    intervalsCont[int(math.floor(float(max-point.z)/intervals))]+1
+                    
             if ((point.z - (self._minimumZValue + zValue)) <0):
+                
+                if point.z > min and point.z  < max :
+                    start = min 
+                    end = min + intervals
+                    index = 0
+                    for count in intervalsCont:
+                        if point.z >start and point.z <end :
+                            intervalsCont[index] = count +1
+                            break
+                        index = index + 1
+                        start = end 
+                        end = start + intervals
+                
                 self._numberOfPoins += 1
                 self._totalZValue +=point.z
                 if point.d:
@@ -525,7 +525,7 @@ if __name__ == '__main__':
     sizeOfBox = float(0.5)
     bic = BIC()
     bic.processData(folderAddress,sizeOfBox,zValue,
-                    largeNumberOfspilitting,intervals=0.1,min=99,max=101)
+                    largeNumberOfspilitting,intervals=1,min=89,max=105)
 
     #bic.exludeLessThanZ(folderAddress, zValue)
     #cut between two z value 
