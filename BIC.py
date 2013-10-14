@@ -1,6 +1,4 @@
 import math
-from _pyio import open
-from tkinter.tix import MAX
 
 class Point():
     '''
@@ -42,11 +40,9 @@ class IO(object):
     _numberOfPoins = 0
     _isFileIsOpen = False 
     _autoOpenClose = None
-    _folderAddress = None
     
     
-    def __init__(self,fileName,folderAddress,autoOpenClose=True):
-        self._folderAddress = folderAddress
+    def __init__(self,fileName,autoOpenClose=True):
         self._autoOpenClose = autoOpenClose 
         self._fileName = fileName
         if not autoOpenClose :
@@ -81,59 +77,16 @@ class IO(object):
             self._readAndWriteStream = open(self._fileName,'a+')
             self._isFileIsOpen = True
             
-    def excludePointWithZValue(self,zValue,intervals=0,min=0,max=0):
+    def excludePointWithZValue(self,zValue):
         finalFileName = self._fileName.split(".")[0] + "ZzZz.asc"
-        fileName = finalFileName.replace(self._folderAddress,'')
-        fileNameIntervalsCount = os.path.join(self._folderAddress,'intervals_counts.txt')
-        intervalsCont = []
-        
-        if intervals != 0 :
-            if(not os.path.exists(fileNameIntervalsCount)):
-                fileIntervalsCount =open(fileNameIntervalsCount,'a+')
-                fileIntervalsCount.write('file_Name ')
-                start = min 
-                loop = True 
-                while loop:
-                    end = start+intervals 
-                    if end > max : end = max 
-                    fileIntervalsCount.write(str(start)+'_'+str(end)+' ')
-                    intervalsCont.append(0)
-                    start = end 
-                    if end == max : break     
-                fileIntervalsCount.write(os.linesep)
-            else : 
-                fileIntervalsCount =open(fileNameIntervalsCount,'a+')
-                start = min 
-                loop = True 
-                while loop:
-                    end = start+intervals 
-                    if end > max : end = max 
-                    intervalsCont.append(int(0))
-                    start = end 
-                    if end == max : break
         fileToWrite = open(finalFileName,"w")
         firstTime = True
         for line in self.readFromFile():
             point = Point(line)
-                    
             if ((point.z - (self._minimumZValue + zValue)) <0):
-                
-                if point.z > min and point.z  < max :
-                    start = min 
-                    end = min + intervals
-                    index = 0
-                    for count in intervalsCont:
-                        if point.z >start and point.z <end :
-                            intervalsCont[index] = count +1
-                            break
-                        index = index + 1
-                        start = end 
-                        end = start + intervals
-                
                 self._numberOfPoins += 1
                 self._totalZValue +=point.z
-                if point.d:
-                    self._totalDensity += point.d
+                self._totalDensity += point.d
                 if(firstTime):
                     firstTime = False
                     self._maximumZValue = point.z
@@ -149,11 +102,6 @@ class IO(object):
                         if point.d < self._minmumDensity :
                             self._minmumDensity = point.d
                 fileToWrite.write(line)
-        fileIntervalsCount.write(fileName+' ')
-        for count in intervalsCont :
-            fileIntervalsCount.write(str(count)+' ')
-        fileIntervalsCount.write(os.linesep)
-        fileIntervalsCount.close()
         fileToWrite.close()
         self.colseFile()
         os.remove(self._fileName)
@@ -242,16 +190,20 @@ class BIC(object):
             tlp.x = minimumX
             while (tlp.x < downRightPoint.x):
                 i += 1
+                distanceToEdge  = tlp.y -downRightPoint.y
+                widthOfBox = topLeftPoint.y - downRightPoint.y
+                # 180 rotate the image 
+                mirrorY = tlp.y - 2*distanceToEdge + widthOfBox
                 drp.x = tlp.x+sizeOfBox
-                drp.y = tlp.y-sizeOfBox
+                drp.y = mirrorY+sizeOfBox
                 centerPoint.x = tlp.x+ sizeOfBox/float(2)
-                centerPoint.y = tlp.y+ sizeOfBox/float(2)
-                cloadSizeInfoFileHandler.write(str(i)+'. '+str(tlp.x)+' '+str(tlp.y)+' '
+                centerPoint.y = mirrorY- sizeOfBox/float(2)
+                cloadSizeInfoFileHandler.write(str(i)+'. '+str(tlp.x)+' '+str(mirrorY )+' '
                                                +str(drp.x)+' '+str(drp.y)+' '
                                                +str(centerPoint.x)+' '+str(centerPoint.y)
                                                +os.linesep)
                 fileAddress = os.path.join( folderAddress , str(i)+".asc")
-                io = IO(fileAddress,folderAddress,largeNumberOfspilitting)
+                io = IO(fileAddress,largeNumberOfspilitting)
                 iOLine.append(io)
                 tlp.x = tlp.x +sizeOfBox
             tlp.y=tlp.y- sizeOfBox
@@ -279,10 +231,9 @@ class BIC(object):
         return iOList
             
         
-    def processData(self,folderAddress,sizeOfBox = 1 , zValue = 2 
-                    ,largeNumberOfspilitting = False,plotInfo = 'plotInfo.txt',
-                    intervals=0,min=0,max=0):
+    def processData(self,folderAddress,sizeOfBox = 1 , zValue = 2 ,largeNumberOfspilitting = False,plotInfo = 'plotInfo.txt'):
         #make result folder 
+        
         os.chdir(folderAddress)
         for fileName in glob.glob('*.asc'):
             outPutFolder = folderAddress+os.sep+fileName.split('.')[0]
@@ -311,7 +262,7 @@ class BIC(object):
             for iOLine in iOMatrix :
                 for io in iOLine :
                     io.colseFile()
-                    io.excludePointWithZValue(zValue,intervals,min,max)  
+                    io.excludePointWithZValue(zValue)  
                     cloadInfo = io.minmumMaximumAndAverage()
                     if len(cloadInfo) == 4:   
                         minimum,maximum,numberOfPoints,average= cloadInfo
@@ -512,6 +463,7 @@ class BIC(object):
         outPutFileHandler.flush()
         outPutFileHandler.close()
         fileHandler.close()
+            
             
 if __name__ == '__main__':
     #put your folder address here 
