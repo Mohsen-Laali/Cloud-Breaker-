@@ -1,6 +1,3 @@
-"""
-"""
-
 import math
 
 class Point():
@@ -43,11 +40,12 @@ class IO(object):
     _numberOfPoins = 0
     _isFileIsOpen = False 
     _autoOpenClose = None
+    _distanceFromCenter = None 
     
-    
-    def __init__(self,fileName,autoOpenClose=True):
+    def __init__(self,fileName,distanceFromCenter,autoOpenClose=True):
         self._autoOpenClose = autoOpenClose 
         self._fileName = fileName
+        self._distanceFromCenter = distanceFromCenter
         if not autoOpenClose :
             self._readAndWriteStream = open(fileName,"w+")
             self._isFileIsOpen = True
@@ -80,18 +78,22 @@ class IO(object):
             self._readAndWriteStream = open(self._fileName,'a+')
             self._isFileIsOpen = True
             
-    def excludePointWithZValue(self,zValue):
+    def excludePointWithZValue(self,zValue,mZValue):
         finalFileName = self._fileName.split(".")[0] + "ZzZz.asc"
         fileToWrite = open(finalFileName,"w")
         firstTime = True
+        if mZValue == None:
+            mZValue = self._minimumZValue
+        pastMinumZValue = self._minimumZValue
         for line in self.readFromFile():
             point = Point(line)
-            if ((point.z - (self._minimumZValue + zValue)) <0):
+            if ((point.z <=(pastMinumZValue + zValue)) and (point.z >= mZValue)):
                 self._numberOfPoins += 1
                 self._totalZValue +=point.z
                 self._totalDensity += point.d
                 if(firstTime):
                     firstTime = False
+                    self._minimumZValue = point.z
                     self._maximumZValue = point.z
                     if point.d :
                         self._maxDensity = point.d
@@ -99,6 +101,8 @@ class IO(object):
                 else:
                     if point.z > self._maximumZValue:
                         self._maximumZValue = point.z
+                    if point.z < self._minimumZValue:
+                        self._minimumZValue = point.z
                     if point.d :
                         if point.d > self._maxDensity :
                             self._maxDensity = point.d
@@ -123,17 +127,18 @@ class IO(object):
         if(self._numberOfPoins != 0):
             average = self._totalZValue/float(self._numberOfPoins)
             averageDensity = self._totalDensity/float(self._numberOfPoins)
-        else : average = -1
+        else : average = 'NP      '
         if(self._maximumZValue == None):
-            self._maximumZValue = -1
-        if(self._minimumZValue == None):
-            self._minimumZValue = -1
+            self._maximumZValue = 'NP      '
+        if(self._minimumZValue == None): 
+            self._minimumZValue = 'NP      '
         if self._minmumDensity :
             return [self._minimumZValue,self._maximumZValue,self._numberOfPoins,
-                    average,self._minmumDensity,self._maxDensity,averageDensity]
+                    average,self._minmumDensity,self._maxDensity,averageDensity,
+                    self._distanceFromCenter]
         else :
             return [self._minimumZValue,self._maximumZValue,self._numberOfPoins,
-                    average]
+                    average,self._distanceFromCenter]
         
     def getFileName(self):
         return self._fileName
@@ -173,12 +178,12 @@ class BIC(object):
                     downRight.y = point.y
                     
         return [topLeft,downRight]
-    
-    def _initialIO(self,topLeftPoint,downRightPoint,sizeOfBox,folderAddress,
+    def _initialIO(self,topLeftPoint,downRightPoint,sizeOfBox,folderAddress,centerOfPlot,
                    largeNumberOfspilitting=False,writCloadSizeInfo=True):
         cloadSizeInfoFileAddress = os.path.join(folderAddress,'CloudSizeInfo.txt')
         if writCloadSizeInfo:
             cloadSizeInfoFileHandler = open(cloadSizeInfoFileAddress,'w+')
+            
         tlp = Point()
         tlp.x = topLeftPoint.x
         tlp.y = topLeftPoint.y
@@ -187,7 +192,7 @@ class BIC(object):
         i = 0
         drp= Point()
         centerPoint = Point()
-        cloadSizeInfoFileHandler.write('File_Name Top_Left_x Top_Left_y Down_Right_x Down_Right_y Center_x Center_y'+os.linesep)
+        cloadSizeInfoFileHandler.write('File_Name Top_Left_x Top_Left_y Down_Right_x Down_Right_y Center_x Center_y Distance_From_Center'+os.linesep)
         while(tlp.y > downRightPoint.y):
             iOLine = []
             tlp.x = minimumX
@@ -201,12 +206,13 @@ class BIC(object):
                 drp.y = mirrorY+sizeOfBox
                 centerPoint.x = tlp.x+ sizeOfBox/float(2)
                 centerPoint.y = mirrorY- sizeOfBox/float(2)
+                distanceFromCenter = math.sqrt((centerPoint.x - centerOfPlot.x)**2 + (centerPoint.y - centerOfPlot.y)**2)
                 cloadSizeInfoFileHandler.write(str(i)+'. '+str(tlp.x)+' '+str(mirrorY )+' '
                                                +str(drp.x)+' '+str(drp.y)+' '
-                                               +str(centerPoint.x)+' '+str(centerPoint.y)
+                                               +str(centerPoint.x)+' '+str(centerPoint.y)+' '+str(distanceFromCenter)
                                                +os.linesep)
                 fileAddress = os.path.join( folderAddress , str(i)+".asc")
-                io = IO(fileAddress,largeNumberOfspilitting)
+                io = IO(fileAddress,distanceFromCenter,largeNumberOfspilitting)
                 iOLine.append(io)
                 tlp.x = tlp.x +sizeOfBox
             tlp.y=tlp.y- sizeOfBox
@@ -234,13 +240,15 @@ class BIC(object):
         return iOList
             
         
-    def processData(self,folderAddress,sizeOfBox = 1 , zValue = 2 ,largeNumberOfspilitting = False,plotInfo = 'plotInfo.txt'):
+    def processData(self,folderAddress,sizeOfBox = 1 , zValue = 2 ,mZValue= None, 
+                    centerOfPlot=None,largeNumberOfspilitting = False,plotInfo = 'plotInfo.txt'):
         #make result folder 
         
         os.chdir(folderAddress)
         for fileName in glob.glob('*.asc'):
             outPutFolder = folderAddress+os.sep+fileName.split('.')[0]
             fileName= folderAddress+os.sep+fileName
+                        
             print('##########################################################################')
             print('start process of ' + fileName)
             if not os.path.exists(outPutFolder): os.makedirs(outPutFolder)
@@ -249,8 +257,13 @@ class BIC(object):
             
             topLeftPoint, downRightPoint = self._findBorder(fileName)
             print('find the border is done')
+            if  centerOfPlot == None:
+                centerOfPlot = Point()
+                centerOfPlot.x = topLeftPoint.x +(downRightPoint.x - topLeftPoint.x)/2
+                centerOfPlot.y = downRightPoint.y + (topLeftPoint.y - downRightPoint.y )/2
+            print('center of plot is X:'+str(centerOfPlot.x)+ ' Y:'+str(centerOfPlot.y))  
             
-            iOMatrix = self._initialIO(topLeftPoint, downRightPoint, sizeOfBox, outPutFolder,largeNumberOfspilitting)
+            iOMatrix = self._initialIO(topLeftPoint, downRightPoint, sizeOfBox,outPutFolder, centerOfPlot,largeNumberOfspilitting)
             print ('initial IO is done')
             
             fileReader = open(fileName,'r')
@@ -260,24 +273,25 @@ class BIC(object):
                 [(int((point.x - topLeftPoint.x)/sizeOfBox))] 
                 io.writeToFile(line ,point.z)
             print ('writing point to disk is done')   
-            plotInfoFileHandler.write('  '+' Point_count Maximum_Z Minimum_Z Average_Z '
-                                      +'Maximum_Density Minimum_Density Average_Density '+os.linesep )
+            plotInfoFileHandler.write('File_Name Point_count Maximum_Z Minimum_Z Average_Z '
+                                      +'Maximum_Density Minimum_Density Average_Density Distance_From_Center'+os.linesep )
             for iOLine in iOMatrix :
                 for io in iOLine :
                     io.colseFile()
-                    io.excludePointWithZValue(zValue)  
+                    io.excludePointWithZValue(zValue,mZValue)  
                     cloadInfo = io.minmumMaximumAndAverage()
-                    if len(cloadInfo) == 4:   
-                        minimum,maximum,numberOfPoints,average= cloadInfo
+                    if len(cloadInfo) == 5:   
+                        minimum,maximum,numberOfPoints,average,distanceFromCenter = cloadInfo
                         plotInfoFileHandler.write(io.getFileName().split(os.sep).pop().split('.')[0]
-                                        +' '+str(numberOfPoints)+' '+str(maximum)+os.linesep)
+                                        +' '+str(numberOfPoints)+' '+str(maximum)+
+                                        str(distanceFromCenter)+os.linesep)
                     else:
-                        minimum,maximum,numberOfPoints,average,minimumD,maximumD,averageD=cloadInfo
+                        minimum,maximum,numberOfPoints,average,minimumD,maximumD,averageD,distanceFromCenter = cloadInfo
                         plotInfoFileHandler.write(io.getFileName().split(os.sep).pop().split('.')[0]
                                         +' '+str(numberOfPoints)+' '+str(maximum)+' '
                                         +str(minimum)+' '+str(average)+' '+
                                         str(maximumD)+' '+str(minimumD)+' '+
-                                        str(averageD)+' '+os.linesep)
+                                        str(averageD)+' '+str(distanceFromCenter)+os.linesep)
             print ('exclude z more than specific number is done')
             print ('finish process of '+ fileName)
             print('##########################################################################')
@@ -413,7 +427,7 @@ class BIC(object):
             print ('exclude z more than specific number is done')
             print ('finish process of '+ fileName)
             print('##########################################################################')
-        print ('All file is processed')
+        print ('All files are processed')
 
     def whereIsPoint(self,firstPoint,secondPoint,point):
         leftFormula = 0
@@ -469,18 +483,253 @@ class BIC(object):
             
             
 if __name__ == '__main__':
-    #put your folder address here 
-    folderAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cloud-Breaker-\Cloud-Breaker-"
+##    #put your folder address here 
+##    folderAddress = r"C:\TLS_Scans_2013_11_14\FinalRawProduct(10m)\P1\NONVEGHEIGHT"
+##    #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
+##    #put z value here 
+##    
+##    zValue = float(1.0)
+##    largeNumberOfspilitting = True
+##    #put the size of box here 
+##    sizeOfBox = float(0.5)
+##    mZValue = None 
+##    topLeftPoint = Point()
+##    bottomRightPoint = Point()
+##    topLeftPoint.x = 98.93
+##    topLeftPoint.y = 101.16
+##    bottomRightPoint.x = 101.03
+##    bottomRightPoint.y = 99.21
+##    
+##    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+##    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+##    centerOfPlot=Point()
+##    
+##    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+##    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+##    
+###     centerOfPlot.x =  10
+###     centerOfPlot.y = 10
+##    centerOfPlot = None
+##    bic = BIC()
+##    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+##                    largeNumberOfspilitting)
+##########################################################################
+##    folderAddress = r"C:\TLS_Scans_2013_11_14\FinalRawProduct(10m)\P1\VEGHEIGHT"
+##    #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
+##    #put z value here 
+##    
+##    zValue = float(1.0)
+##    largeNumberOfspilitting = True
+##    #put the size of box here 
+##    sizeOfBox = float(0.5)
+##    mZValue = 0.02 
+##    topLeftPoint = Point()
+##    bottomRightPoint = Point()
+##    topLeftPoint.x = 98.93
+##    topLeftPoint.y = 101.16
+##    bottomRightPoint.x = 101.03
+##    bottomRightPoint.y = 99.21
+##    
+##    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+##    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+##    centerOfPlot=Point()
+##    
+##    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+##    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+##    
+###     centerOfPlot.x =  10
+###     centerOfPlot.y = 10
+##    centerOfPlot = None
+##    bic = BIC()
+##    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+##                    largeNumberOfspilitting)
+
+##########################################################################
+##    folderAddress = r"C:\TLS_Scans_2013_11_14\FinalRawProduct(10m)\P2\NONVEGHEIGHT"
+##    #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
+##    #put z value here 
+##    
+##    zValue = float(1.0)
+##    largeNumberOfspilitting = True
+##    #put the size of box here 
+##    sizeOfBox = float(0.5)
+##    mZValue = None 
+##    topLeftPoint = Point()
+##    bottomRightPoint = Point()
+##    topLeftPoint.x = 99.19
+##    topLeftPoint.y = 100.93
+##    bottomRightPoint.x = 100.99
+##    bottomRightPoint.y = 99.13
+##    
+##    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+##    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+##    centerOfPlot=Point()
+##    
+##    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+##    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+##    
+###     centerOfPlot.x =  10
+###     centerOfPlot.y = 10
+##    centerOfPlot = None
+##    bic = BIC()
+##    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+##                    largeNumberOfspilitting)
+############################################################################
+##    folderAddress = r"C:\TLS_Scans_2013_11_14\FinalRawProduct(10m)\P2\VEGHEIGHT"
+##    #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
+##    #put z value here 
+##    
+##    zValue = float(1.0)
+##    largeNumberOfspilitting = True
+##    #put the size of box here 
+##    sizeOfBox = float(0.5)
+##    mZValue = 0.02 
+##    topLeftPoint = Point()
+##    bottomRightPoint = Point()
+##    topLeftPoint.x = 99.19
+##    topLeftPoint.y = 100.93
+##    bottomRightPoint.x = 100.99
+##    bottomRightPoint.y = 99.13
+##    
+##    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+##    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+##    centerOfPlot=Point()
+##    
+##    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+##    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+##    
+###     centerOfPlot.x =  10
+###     centerOfPlot.y = 10
+##    centerOfPlot = None
+##    bic = BIC()
+##    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+##                    largeNumberOfspilitting)
+##########################################################################
+    folderAddress = r"C:\TLS-data\2012_05_W2\RawASCII\Shifted\P2_Shifted_W2\Voxels"
     #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
     #put z value here 
     
-    zValue = float(0.5)
-    largeNumberOfspilitting = False
+    zValue = float(1.0)
+    largeNumberOfspilitting = True
     #put the size of box here 
     sizeOfBox = float(0.5)
+    mZValue = 0.05 
+    topLeftPoint = Point()
+    bottomRightPoint = Point()
+    topLeftPoint.x = 99.19
+    topLeftPoint.y = 100.93
+    bottomRightPoint.x = 100.99
+    bottomRightPoint.y = 99.13
+    
+    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+    centerOfPlot=Point()
+    
+    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+    
+#     centerOfPlot.x =  10
+#     centerOfPlot.y = 10
+    centerOfPlot = None
     bic = BIC()
-    bic.processData(folderAddress,sizeOfBox,zValue,
-                    largeNumberOfspilitting,intervals=1,min=89,max=105)
+    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+                    largeNumberOfspilitting)
+
+##########################################################################
+##    folderAddress = r"C:\TLS_Scans_2013_11_14\P320140327\P3\VEGHEIGHT"
+##    #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
+##    #put z value here 
+##    
+##    zValue = float(1.0)
+##    largeNumberOfspilitting = True
+##    #put the size of box here 
+##    sizeOfBox = float(0.4999)
+##    mZValue = 0.02 
+##    topLeftPoint = Point()
+##    bottomRightPoint = Point()
+##    topLeftPoint.x = 98.98
+##    topLeftPoint.y = 101.00
+##    bottomRightPoint.x = 100.95
+##    bottomRightPoint.y = 98.98
+##    
+##    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+##    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+##    centerOfPlot=Point()
+##    
+##    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+##    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+##    
+###     centerOfPlot.x =  10
+###     centerOfPlot.y = 10
+##    centerOfPlot = None
+##    bic = BIC()
+##    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+##                    largeNumberOfspilitting)
+
+
+##########################################################################
+##    folderAddress = r"C:\TLS_Scans_2013_11_14\FinalRawProduct(10m)\P4\NONVEGHEIGHT"
+##    #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
+##    #put z value here 
+##    
+##    zValue = float(1.0)
+##    largeNumberOfspilitting = True
+##    #put the size of box here 
+##    sizeOfBox = float(0.5)
+##    mZValue = None
+##    topLeftPoint = Point()
+##    bottomRightPoint = Point()
+##    topLeftPoint.x = 99.08
+##    topLeftPoint.y = 101.02
+##    bottomRightPoint.x = 100.95
+##    bottomRightPoint.y = 99.04
+##    
+##    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+##    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+##    centerOfPlot=Point()
+##    
+##    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+##    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+##    
+###     centerOfPlot.x =  10
+###     centerOfPlot.y = 10
+##    centerOfPlot = None
+##    bic = BIC()
+##    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+##                    largeNumberOfspilitting)
+############################################################################
+##    folderAddress = r"C:\TLS_Scans_2013_11_14\FinalRawProduct(10m)\P4\VEGHEIGHT"
+##    #fileAddress = r"D:\My Backups\Dropbox\My Uni\My Courses\IWS\Cload_Breaks\plot4scan2_raw.asc"
+##    #put z value here 
+##    
+##    zValue = float(1.0)
+##    largeNumberOfspilitting = True
+##    #put the size of box here 
+##    sizeOfBox = float(0.5)
+##    mZValue = 0.02 
+##    topLeftPoint = Point()
+##    bottomRightPoint = Point()
+##    topLeftPoint.x = 99.08
+##    topLeftPoint.y = 101.02
+##    bottomRightPoint.x = 100.95
+##    bottomRightPoint.y = 99.04
+##    
+##    distanceFromTopLeftx=(topLeftPoint.x-bottomRightPoint.x)/2.0
+##    distanceFromBottomRighty=(bottomRightPoint.y-topLeftPoint.y)/2.0
+##    centerOfPlot=Point()
+##    
+##    centerOfPlot.x=(distanceFromTopLeftx+topLeftPoint.x)
+##    centerOfPlot.y=(distanceFromBottomRighty+bottomRightPoint.y)
+##    
+###     centerOfPlot.x =  10
+###     centerOfPlot.y = 10
+##    centerOfPlot = None
+##    bic = BIC()
+##    bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+##                    largeNumberOfspilitting)
+## 
+#     bic.processData(folderAddress,sizeOfBox,zValue,mZValue,centerOfPlot,
+#                     largeNumberOfspilitting,intervals=1,min=89,max=105)
 
     #bic.exludeLessThanZ(folderAddress, zValue)
     #cut between two z value 
@@ -510,4 +759,3 @@ if __name__ == '__main__':
 #    point3.y = 1000
 #    
 #    bic.excluder(fileAddress,point1,point2,point3)
-    
